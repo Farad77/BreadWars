@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Créateur de Stratégie - Jeu de la Vie</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .controls {
+            margin: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .grid {
+            display: inline-block;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            border-radius: 4px;
+        }
+
+        button {
+            padding: 8px 16px;
+            margin: 0 5px;
+            font-size: 14px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .stats {
+            margin: 20px;
+            font-size: 18px;
+            padding: 10px 20px;
+            background-color: white;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        #remaining {
+            color: #ff4444;
+            font-weight: bold;
+        }
+
+        .strategy-name {
+            margin: 20px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+            width: 300px;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .import-label {
+            padding: 8px 16px;
+            background-color: #4444ff;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .import-label:hover {
+            background-color: #2222ff;
+        }
+
+        .class-selector {
+            background-color: white;
+            padding: 20px;
+            border-radius: 4px;
+            margin: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .class-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+
+        .class-option:hover {
+            background-color: #f5f5f5;
+        }
+
+        .class-option.selected {
+            background-color: #e3f2fd;
+        }
+
+        .class-icon {
+            font-size: 24px;
+            width: 30px;
+            text-align: center;
+        }
+
+        .class-info {
+            flex-grow: 1;
+        }
+
+        .class-name {
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .class-description {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .class-stats {
+            font-size: 12px;
+            color: #444;
+            margin-top: 4px;
+        }
+
+        .class-count {
+            font-size: 14px;
+            color: #666;
+            padding: 0 8px;
+            background-color: #eee;
+            border-radius: 10px;
+        }
+
+        .preview-cell {
+            position: absolute;
+            pointer-events: none;
+            opacity: 0.5;
+            font-size: 20px;
+            text-align: center;
+            line-height: 20px;
+        }
+
+        .help-text {
+            margin: 20px;
+            padding: 15px;
+            background-color: #fff3cd;
+            border: 1px solid #ffeeba;
+            border-radius: 4px;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>Créateur de Stratégie</h1>
+        <input type="text" id="strategyName" class="strategy-name" placeholder="Nom de la stratégie">
+        
+        <div class="help-text">
+            Clic gauche pour placer un agent
+            <br>
+            Ctrl+Clic pour supprimer un agent
+        </div>
+
+        <div class="class-selector">
+            <h3>Classes d'agents disponibles</h3>
+            <div id="classOptions"></div>
+        </div>
+
+        <div class="controls">
+            <button onclick="clearGrid()">Effacer</button>
+            <button onclick="exportStrategy()">Exporter</button>
+            <label class="import-label">
+                Importer
+                <input type="file" class="file-input" onchange="importStrategy(event)" accept=".json">
+            </label>
+        </div>
+
+        <div class="stats">
+            Agents restants: <span id="remaining">15</span>
+        </div>
+
+        <canvas id="grid" class="grid" width="600" height="600"></canvas>
+    </div>
+
+    <script type="module">
+        import { AGENT_CLASSES } from './agentClasses.js';
+
+        class StrategyBuilder {
+            constructor() {
+                this.canvas = document.getElementById('grid');
+                this.ctx = this.canvas.getContext('2d');
+                this.resolution = 20;
+                this.cols = this.canvas.width / this.resolution;
+                this.rows = this.canvas.height / this.resolution;
+                this.grid = Array(this.cols).fill().map(() => Array(this.rows).fill(null));
+                this.maxAgents = 15;
+                this.placedAgents = 0;
+                this.selectedClass = 'VILLAGER';
+                this.previewCell = null;
+                
+                this.initializeClassSelector();
+                this.initializeEventListeners();
+                this.draw();
+            }
+
+            initializeClassSelector() {
+                const container = document.getElementById('classOptions');
+                Object.entries(AGENT_CLASSES).forEach(([className, classData]) => {
+                    const div = document.createElement('div');
+                    div.className = 'class-option';
+                    if (className === this.selectedClass) {
+                        div.classList.add('selected');
+                    }
+
+                    div.innerHTML = `
+                        <div class="class-icon">${classData.icon}</div>
+                        <div class="class-info">
+                            <div class="class-name">${classData.name}</div>
+                            <div class="class-description">${classData.description}</div>
+                            <div class="class-stats">
+                                Force: ${classData.stats.forceBonus >= 0 ? '+' : ''}${classData.stats.forceBonus} | 
+                                Défense: ${classData.stats.defenseBonus >= 0 ? '+' : ''}${classData.stats.defenseBonus}
+                            </div>
+                        </div>
+                        <div id="${className}-count" class="class-count">0</div>
+                    `;
+
+                    div.onclick = () => this.selectClass(className);
+                    container.appendChild(div);
+                });
+            }
+
+            selectClass(className) {
+                document.querySelectorAll('.class-option').forEach(el => {
+                    el.classList.remove('selected');
+                });
+                document.querySelector(`.class-option:has(.class-name:contains('${AGENT_CLASSES[className].name}'))`).classList.add('selected');
+                this.selectedClass = className;
+            }
+
+            updateClassCounts() {
+                const counts = {};
+                for (let i = 0; i < this.cols; i++) {
+                    for (let j = 0; j < this.rows; j++) {
+                        if (this.grid[i][j]) {
+                            const className = this.grid[i][j].class;
+                            counts[className] = (counts[className] || 0) + 1;
+                        }
+                    }
+                }
+
+                Object.keys(AGENT_CLASSES).forEach(className => {
+                    const countElement = document.getElementById(`${className}-count`);
+                    if (countElement) {
+                        countElement.textContent = counts[className] || 0;
+                    }
+                });
+            }
+
+            draw() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                for (let i = 0; i < this.cols; i++) {
+                    for (let j = 0; j < this.rows; j++) {
+                        const x = i * this.resolution;
+                        const y = j * this.resolution;
+                        
+                        if (this.grid[i][j]) {
+                            this.ctx.fillStyle = '#ff444480';
+                            this.ctx.fillRect(x, y, this.resolution, this.resolution);
+
+                            // Dessiner l'icône de la classe
+                            this.ctx.font = `${this.resolution * 0.7}px Arial`;
+                            this.ctx.textAlign = 'center';
+                            this.ctx.textBaseline = 'middle';
+                            this.ctx.fillStyle = 'black';
+                            this.ctx.fillText(
+                                AGENT_CLASSES[this.grid[i][j].class].icon,
+                                x + this.resolution/2,
+                                y + this.resolution/2
+                            );
+                        }
+                        
+                        this.ctx.strokeStyle = '#ddd';
+                        this.ctx.strokeRect(x, y, this.resolution, this.resolution);
+                    }
+                }
+                
+                document.getElementById('remaining').textContent = this.maxAgents - this.placedAgents;
+                this.updateClassCounts();
+            }
+
+            addAgent(x, y) {
+                if (this.placedAgents < this.maxAgents && !this.grid[x][y]) {
+                    this.grid[x][y] = {
+                        class: this.selectedClass,
+                    };
+                    this.placedAgents++;
+                    this.draw();
+                    return true;
+                }
+                return false;
+            }
+
+            removeAgent(x, y) {
+                if (this.grid[x][y]) {
+                    this.grid[x][y] = null;
+                    this.placedAgents--;
+                    this.draw();
+                }
+            }
+
+            clear() {
+                this.grid = Array(this.cols).fill().map(() => Array(this.rows).fill(null));
+                this.placedAgents = 0;
+                this.draw();
+            }
+
+            exportToJson() {
+    // Trouver les limites de la stratégie
+    let minX = this.cols;
+    let minY = this.rows;
+    let maxX = 0;
+    let maxY = 0;
+    
+    // Trouver les dimensions de la stratégie
+    for (let i = 0; i < this.cols; i++) {
+        for (let j = 0; j < this.rows; j++) {
+            if (this.grid[i][j]) {
+                minX = Math.min(minX, i);
+                minY = Math.min(minY, j);
+                maxX = Math.max(maxX, i);
+                maxY = Math.max(maxY, j);
+            }
+        }
+    }
+    
+    // Si aucun agent n'a été placé
+    if (minX > maxX) return {
+        name: document.getElementById('strategyName').value || 'Nouvelle Stratégie',
+        positions: []
+    };
+    
+    // Enregistrer les positions relatives
+    const positions = [];
+    for (let i = 0; i < this.cols; i++) {
+        for (let j = 0; j < this.rows; j++) {
+            if (this.grid[i][j]) {
+                positions.push({
+                    x: i - minX,
+                    y: j - minY,
+                    class: this.grid[i][j].class
+                });
+            }
+        }
+    }
+    
+    const strategy = {
+        name: document.getElementById('strategyName').value || 'Nouvelle Stratégie',
+        positions: positions,
+        width: maxX - minX + 1,
+        height: maxY - minY + 1
+    };
+    
+    return JSON.stringify(strategy, null, 2);
+}
+           // Modifier également la méthode importFromJson pour gérer les positions relatives :
+importFromJson(jsonData) {
+    try {
+        const strategy = JSON.parse(jsonData);
+        this.clear();
+        
+        if (strategy.name) {
+            document.getElementById('strategyName').value = strategy.name;
+        }
+        
+        // Trouver une position de départ au centre de la grille
+        const startX = Math.floor((this.cols - (strategy.width || 0)) / 2);
+        const startY = Math.floor((this.rows - (strategy.height || 0)) / 2);
+        
+        strategy.positions.forEach(pos => {
+            const x = startX + pos.x;
+            const y = startY + pos.y;
+            if (x >= 0 && x < this.cols && y >= 0 && y < this.rows) {
+                this.grid[x][y] = {
+                    class: pos.class || 'VILLAGER'
+                };
+                this.placedAgents++;
+            }
+        });
+        
+        this.draw();
+    } catch (e) {
+        alert('Erreur lors de l\'importation du fichier');
+    }
+}
+
+            updatePreview(x, y) {
+                if (!this.previewCell) {
+                    this.previewCell = document.createElement('div');
+                    this.previewCell.className = 'preview-cell';
+                    document.body.appendChild(this.previewCell);
+                }
+
+                if (x >= 0 && x < this.cols && y >= 0 && y < this.rows) {
+                    const rect = this.canvas.getBoundingClientRect();
+                    this.previewCell.style.display = 'block';
+                    this.previewCell.style.left = (rect.left + x * this.resolution) + 'px';
+                    this.previewCell.style.top = (rect.top + y * this.resolution) + 'px';
+                    this.previewCell.style.width = this.resolution + 'px';
+                    this.previewCell.style.height = this.resolution + 'px';
+                    this.previewCell.textContent = AGENT_CLASSES[this.selectedClass].icon;
+                } else {
+                    this.previewCell.style.display = 'none';
+                }
+            }
+
+            initializeEventListeners() {
+                this.canvas.addEventListener('click', (event) => {
+                    const rect = this.canvas.getBoundingClientRect();
+                    const x = Math.floor((event.clientX - rect.left) / this.resolution);
+                    const y = Math.floor((event.clientY - rect.top) / this.resolution);
+                    
+                    if (event.ctrlKey || event.metaKey) {
+                        this.removeAgent(x, y);
+                    } else {
+                        this.addAgent(x, y);
+                    }
+                });
+
+                this.canvas.addEventListener('mousemove', (event) => {
+                    const rect = this.canvas.getBoundingClientRect();
+                    const x = Math.floor((event.clientX - rect.left) / this.resolution);
+                    const y = Math.floor((event.clientY - rect.top) / this.resolution);
+                    this.updatePreview(x, y);
+                });
+
+                this.canvas.addEventListener('mouseleave', () => {
+                    if (this.previewCell) {
+                        this.previewCell.style.display = 'none';
+                    }
+                });
+            }
+        }
+
+        let builder;
+        document.addEventListener('DOMContentLoaded', () => {
+            builder = new StrategyBuilder();
+            window.builder = builder;
+        });
+
+        window.clearGrid = () => builder.clear();
+        window.exportStrategy = () => {
+            const jsonStr = builder.exportToJson();
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${document.getElementById('strategyName').value || 'strategy'}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        };
+
+        window.importStrategy = (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    builder.importFromJson(e.target.result);
+                };
+                reader.readAsText(file);
+            }
+        };
+    </script>
+
+    <script>
+        // Polyfill pour la sélection :has (pour la compatibilité navigateur)
+        if (!CSS.supports('selector(:has(*))')) {
+            document.querySelectorAll('.class-option').forEach(option => {
+                option.querySelector('.class-name').addEventListener('click', () => {
+                    option.click();
+                });
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Jeu de la Vie - Rouge vs Bleu avec Statistiques</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .controls {
+            margin: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .grid {
+            display: inline-block;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            border-radius: 4px;
+        }
+
+        button {
+            padding: 8px 16px;
+            margin: 0 5px;
+            font-size: 14px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .stats {
+            margin: 20px;
+            font-size: 18px;
+            padding: 10px 20px;
+            background-color: white;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .color-picker {
+            margin: 10px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .color-picker button {
+            width: 100px;
+        }
+
+        #redButton {
+            background-color: #ff4444;
+        }
+
+        #redButton:hover {
+            background-color: #ff2222;
+        }
+
+        #blueButton {
+            background-color: #4444ff;
+        }
+
+        #blueButton:hover {
+            background-color: #2222ff;
+        }
+
+        .cell-info {
+            position: fixed;
+            background: white;
+            border: 1px solid #ddd;
+            padding: 12px;
+            border-radius: 6px;
+            display: none;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            font-size: 14px;
+            line-height: 1.5;
+            min-width: 150px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s ease-in-out;
+        }
+
+        .cell-info.visible {
+            opacity: 1;
+        }
+
+        .cell-info span {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .game-container {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .strategy-controls {
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .import-label {
+            padding: 8px 16px;
+            background-color: #4444ff;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: inline-block;
+        }
+
+        .import-label:hover {
+            background-color: #2222ff;
+        }
+
+        .strategy-links {
+            margin: 10px;
+            text-align: center;
+        }
+
+        .strategy-links a {
+            color: #4444ff;
+            text-decoration: none;
+            margin: 0 10px;
+        }
+
+        .strategy-links a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>Jeu de la Vie - Rouge vs Bleu avec Statistiques</h1>
+        
+        <div class="strategy-links">
+            <a href="strategy.html" target="_blank">Créer une nouvelle stratégie</a>
+        </div>
+
+        <div class="color-picker">
+            <button id="redButton" onclick="setCurrentColor('red')">Rouge</button>
+            <button id="blueButton" onclick="setCurrentColor('blue')">Bleu</button>
+        </div>
+
+        <div class="controls">
+            <button onclick="start()">Démarrer</button>
+            <button onclick="stop()">Arrêter</button>
+            <button onclick="reset()">Réinitialiser</button>
+        </div>
+
+        <div class="strategy-controls">
+            <label class="import-label">
+                Importer Stratégie Rouge
+                <input type="file" class="file-input" onchange="importRedStrategy(event)" accept=".json">
+            </label>
+            <label class="import-label">
+                Importer Stratégie Bleue
+                <input type="file" class="file-input" onchange="importBlueStrategy(event)" accept=".json">
+            </label>
+        </div>
+
+        <div class="stats">
+            Rouges: <span id="redCount">0</span> | 
+            Bleus: <span id="blueCount">0</span> |
+            Pain: <span id="foodCount">0</span>
+        </div>
+
+        <div id="cellInfo" class="cell-info"></div>
+        <canvas id="grid" class="grid" width="600" height="600"></canvas>
+    </div>
+    <script type="module" src="gameUI.js"></script>
+</body>
+</html>
